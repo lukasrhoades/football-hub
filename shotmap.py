@@ -2,7 +2,7 @@
 
 def season_shotmap(player_name, competition_name):
     """
-    Input a player's first and last name (string),
+    Input a player's first and last name titlecased (string),
     and competition name (string) in the following format:
     'Competition Name StartYr/EndYr'
     Examples: 'Premier League 24/25', 'UEFA Champions League 22/23'
@@ -18,19 +18,28 @@ def get_player_id(player_name):
     from selenium import webdriver
     from selenium.webdriver.common.by import By
     from selenium.webdriver.common.keys import Keys
+    from selenium.webdriver.support.wait import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
     import time
     import re
 
     # Search SofaScore for player url
     browser = webdriver.Chrome()
-    browser.minimize_window()
+    browser.minimize_window()  # Hide operations
     browser.get("https://www.sofascore.com")
-    search_player = browser.find_element(By.ID, "search-input")
-    time.sleep(1)
+
+    # Wait for search input to load
+    search_player = WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.ID, "search-input"))
+    )
+
+    # Query player name, wait for options to load, then select first option
     search_player.send_keys(player_name)
-    time.sleep(1)
+    time.sleep(1.5)
     search_player.send_keys(Keys.ARROW_DOWN, Keys.ENTER)
-    time.sleep(1)
+
+    # When player url loads, grab the url and close browser
+    WebDriverWait(browser, 10).until(EC.url_contains("player"))
     url = browser.current_url
     browser.quit()
 
