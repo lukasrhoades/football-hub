@@ -2,12 +2,51 @@
 
 def season_shotmap(player_name, competition_name):
     """
-    Input a player's first and last name titlecased (string),
-    and competition name (string) in the following format:
-    'Competition Name StartYr/EndYr'
-    Examples: 'Premier League 24/25', 'UEFA Champions League 22/23'
-    Only works for 22/23-24/25 seasons
+    Returns a shotmap for a given football player in a given season
+
+    Arguments:
+    player_name = 'Firstname Lastname'
+        Titlecased string
+        Must include special characters if necessary, 'Kylian Mbappé'
+    competition_name = 'Competition Name StartYr/EndYr'
+        Titlecased string, default (YY/YY)
+        See exceptions below
+    
+    Example Usage:
+    season_shotmap('Mohamed Salah', 'Premier League 24/25')
+    season_shotmap('Lionel Messi', 'UEFA Champions League 22/23')
+
+    Known Competitions:
+    Europe: 'UEFA Champions League', 'UEFA Europa League'
+    International (YYYY): 'World Cup 2022', 'Copa America 2024', 'EURO 2024'
+    England: 'Premier League'
+    Spain: 'LaLiga'
+    Italy: 'Serie A'
+    France: 'Ligue 1'
+    USA: 'MLS' (YYYY)
+    
+    Exceptions: 
+    For certain competitions, input year (YYYY) 
+    Examples: 'MLS', 'EURO', 'Copa America', 'World Cup'
+    
+    Restrictions:
+    Domestic cup competitions do not have xG data and are not included
+    Only works for 22/23, 23/24, 24/25 seasons due to xG data collection
+    MLS only works for 2024, 2025
     """
+    # Handle inputs
+    player_name = player_name.strip().title()
+    competition_name = competition_name.strip().title()
+    if "Uefa" in competition_name:
+        competition_name = competition_name.replace("Uefa", "UEFA")
+    if "Euro " in competition_name:
+        competition_name = competition_name.replace("Euro ", "EURO ")
+    if "Laliga" in competition_name:
+        competition_name = competition_name.replace("Laliga", "LaLiga")
+    if "Mls" in competition_name:
+        competition_name = competition_name.replace("Mls", "MLS")
+
+    # Generate shotmap
     player_id = get_player_id(player_name)
     compiled_data = shotmap_compiler(player_id, player_name, competition_name)
     return visualize_shotmap(player_name, compiled_data, competition_name)
