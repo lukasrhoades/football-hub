@@ -1,10 +1,47 @@
 """Functions to visualize shotmap data for a football player in a chosen season and competition"""
 
+def season_shotmap(player_name, competition_name):
+    """
+    Input a player's first and last name (string),
+    and competition name (string) in the following format:
+    'Competition Name StartYr/EndYr'
+    Examples: 'Premier League 24/25', 'UEFA Champions League 22/23'
+    Only works for 22/23-24/25 seasons
+    """
+    player_id = get_player_id(player_name)
+    compiled_data = shotmap_compiler(player_id, player_name, competition_name)
+    return visualize_shotmap(player_name, compiled_data, competition_name)
+
+
+def get_player_id(player_name):
+    """Returns SofaScore player ID for given player"""
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.keys import Keys
+    import time
+    import re
+
+    # Search SofaScore for player url
+    browser = webdriver.Chrome()
+    browser.get("https://www.sofascore.com")
+    search_player = browser.find_element(By.ID, "search-input")
+    time.sleep(2)
+    search_player.send_keys(player_name)
+    time.sleep(2)
+    search_player.send_keys(Keys.ARROW_DOWN, Keys.ENTER)
+    time.sleep(2)
+    url = browser.current_url
+    browser.quit()
+
+    # Take player ID from end of url
+    player_id = re.findall(r"-\w+/(.*)", url)
+    return player_id[0]
+
+
 def season_match_ids(player_id, competition_name):
     """Returns SofaScore match IDs in chosen competition for chosen player"""
     import requests
     import codes
-    import json
     
     match_ids = []
 
@@ -40,7 +77,6 @@ def get_shots(match_id, player_name):
     """Returns list of shots in a given game taken by a given player"""
     import requests
     import codes
-    import json
     import pandas as pd
     
     url = f"https://www.sofascore.com/api/v1/event/{match_id}/shotmap"
@@ -347,16 +383,3 @@ def visualize_shotmap(player_name, compiled_data, competition_name):
         color="white",
         ha="left"
     )
-
-
-def season_shotmap(player_id, player_name, competition_name):
-    """
-    Input a player's SofaScore ID (int/string), full name (string),
-    and competition name (string) in the following format:
-    'Competition Name StartYr/EndYr'
-    Examples: 'Premier League 24/25', 'UEFA Champions League 22/23'
-    Only works for 22/23-24/25 seasons
-    """
-    match_ids = season_match_ids(player_id, competition_name)
-    compiled_data = shotmap_compiler(player_id, player_name, competition_name)
-    return visualize_shotmap(player_name, compiled_data, competition_name)
