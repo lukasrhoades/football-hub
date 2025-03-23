@@ -23,13 +23,14 @@ def get_player_id(player_name):
 
     # Search SofaScore for player url
     browser = webdriver.Chrome()
+    browser.minimize_window()
     browser.get("https://www.sofascore.com")
     search_player = browser.find_element(By.ID, "search-input")
-    time.sleep(2)
+    time.sleep(1)
     search_player.send_keys(player_name)
-    time.sleep(2)
+    time.sleep(1)
     search_player.send_keys(Keys.ARROW_DOWN, Keys.ENTER)
-    time.sleep(2)
+    time.sleep(1)
     url = browser.current_url
     browser.quit()
 
@@ -103,10 +104,9 @@ def get_shots(match_id, player_name):
                 else:
                     new_data = pd.DataFrame([columns])
                     data = pd.concat([data, new_data]).reset_index(drop=True)
+        return data
     else:
         print(response.code)
-
-    return data
 
 
 def shotmap_compiler(player_id, player_name, competition_name):
