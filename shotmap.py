@@ -431,3 +431,5 @@ def visualize_shotmap(player_name, compiled_data, competition_name):
         color="white",
         ha="left"
     )
+
+    return fig
