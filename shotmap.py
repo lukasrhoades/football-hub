@@ -180,6 +180,7 @@ def visualize_shotmap(player_name, compiled_data, competition_name):
     import pandas as pd
     import matplotlib.pyplot as plt
     from mplsoccer import VerticalPitch
+    import sys
     
     background_color = "#0C0D0E"  # Hides plotlines
 
@@ -432,7 +433,10 @@ def visualize_shotmap(player_name, compiled_data, competition_name):
         ha="left"
     )
 
-    # Show data (for script files)
-    plt.show()
-
+    # Show data, regardless of whether in script file or ipynb
+    if "ipykernel" in sys.modules:
+        plt.close(fig)  # Avoids duplicate plots in jupyter
+    else:
+        plt.show()
+    
     return fig
