@@ -432,4 +432,7 @@ def visualize_shotmap(player_name, compiled_data, competition_name):
         ha="left"
     )
 
+    # Show data (for script files)
+    plt.show()
+
     return fig
