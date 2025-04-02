@@ -59,12 +59,16 @@ def get_player_id(player_name):
     from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.support.wait import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.chrome.options import Options
     import time
     import re
 
+    # Configure for performance
+    options = Options()
+    options.add_argument("--headless=new")
+
     # Search SofaScore for player url
-    browser = webdriver.Chrome()
-    browser.minimize_window()  # Hide operations
+    browser = webdriver.Chrome(options=options)
     browser.get("https://www.sofascore.com")
 
     # Wait for search input to load
