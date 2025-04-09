@@ -81,6 +81,7 @@ def get_images(players):
     browser = webdriver.Chrome(options=options)
 
     # For each player search an image
+    sources = []  # Save sources in list
     for player, club in players:
         browser.get("https://www.google.com/imghp?hl=en")
         
@@ -89,7 +90,7 @@ def get_images(players):
             EC.presence_of_element_located((By.ID, "APjFqb"))
         ) 
         # Search player images (without Wikipedia entries)
-        search_player.send_keys(player + " " + club + " -wiki")
+        search_player.send_keys(player + " " + club + " -wiki match")
         search_player.send_keys(Keys.ENTER)
 
         # Find first image
@@ -100,7 +101,7 @@ def get_images(players):
         except TimeoutException:
             continue
 
-        # Download source
+        # Download image
         image = WebDriverWait(first, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "img"))
         )
@@ -109,35 +110,22 @@ def get_images(players):
             urllib.request.urlretrieve(src, filename=f"images/{player}.png")
         else:  # If in python script file
             urllib.request.urlretrieve(src, filename=f"media/images/{player}.png")
-
-
-"""
-def get_players(season):
-    import requests
-    import time
+        
+        # Save source
+        source = first.get_attribute("data-lpage")
+        sources.append((player, source))
     
-    base_url = "https://fbrapi.com"
+    return sources
 
-    # Get API key for FBRef
-    response = requests.post(base_url + "/generate_api_key")
-    api_key = response.json()["api_key"]
 
-    time.sleep(7)  # Avoid rate limit
+def format_sources(sources):
+    """Formats sources nicely"""
+    import pandas as pd
 
-    # Grab team roster for each Premier League team
-    url = base_url + "/league-standings"
-    params = {
-        "league_id": "9",
-        "season_id": season
-    }
-    headers = {"X-API-KEY": api_key}
-    
-    response = requests.get(url, params=params, headers=headers)
-    if response.status_code == 200:
-        print(response.json())
-    else:
-        print(response.status_code)
-"""
-
+    players, sources = zip(*sources)
+    return pd.DataFrame(
+        {"Players": players,
+         "Sources": sources}
+    )
 
 
