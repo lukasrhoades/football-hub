@@ -174,20 +174,53 @@ def tone_detector(images):
     for i in range(0, len(images), batch_size):
         batch = images[i:i+batch_size]
 
+        # Upload samples
+        sample_positive = "samples/iwobi-positive.png"
+        sample_negative = "samples/iwobi-negative.png"
+        sample_neutral = "samples/iwobi-neutral.png"
+
         for image_path in batch:
             image = Image.open(image_path)
 
             prompt = """
-            Respond in one word.
-            Does the player in the image reflect a positive, neutral, or negative media tone?
+            Respond with exactly 3 values separated by a comma:
+            tone, tone strength(0-100), image quality(0-100)).
+
+            The first three images are sample images. For the purposes of classification:
+            The first reflects a positive image,
+            The second reflects a negative image,
+            The third reflects a neutral image.
+
+            The final image is the image you are tasked with classifying on three criteria:
+            Tone, tone strength, image quality.
+
+            Tone:
+            Does the player in the final image reflect a positive, neutral, or negative media tone?
             If the player is smiling or celebrating, the image is positive.
-            If they look disappointed or frustrated, the image is negative.
-            Otherwise, the image is neutral.
+            The image is negative if the player looks disappointed or frustrated.
+            Otherwise, the image is neutral (player has neutral expression).
+
+            Tone Strength:
+            Rank the previous classification on a scale of 0 to 100.
+            Scores closer to 0 means you are unsure and classified randomly.
+            Scores closer to 100 means the image closely resembles the given criteria for the tone.
+
+            Image Quality:
+            Scores closer to 0 means the image is grain, tiny, or very difficult to decipher.
+            Scores closer to 100 means the image is large and of high quality.
+            Images of the player on the pitch are of higher quality. Images with a plain background are lower.
+            If the image has watermarks such as "Getty Images", the score is automatically 0.
+            Of the samples, note how the first two are of higher quality than the last.
+
+            Do not include new lines in any part of the response. It should be formatted as follows:
+            string, integer, integer
+            with the string being "Positive", "Neutral", or "Negative"
+            and the integer being from 0 to 100.
             """
 
-            response = model.generate_content([prompt, image])
+            response = model.generate_content([prompt, sample_positive, sample_negative, sample_neutral, image])
 
-            tone.append(response.text)
+            tone.append(response.text.replace("\n", ""))
 
             time.sleep(2)  # Pause in beetween images
 
@@ -199,10 +232,36 @@ def tone_detector(images):
 def compiler(sources, tones):
     """Compiles data into a pandas DataFrame"""
     import pandas as pd
+    import glob
+    import re
 
+    # Set up DataFrame with sources
     players, sources = zip(*sources)
-    return pd.DataFrame(
+    source_df = pd.DataFrame(
         {"Players": players,
-         "Tones": tones,
-         "Sources": sources}
+         "Source": sources}
     )
+
+    # Set up DataFrame with tone data
+    images = glob.glob("images/*")
+    names = [re.findall(r"images/(.+)\.png", image)[0] for image in images]
+    processed_tones = []
+    for response in tones:
+        processed_tones.append(
+            (response.split(",")[0].strip('"'), 
+             response.split(",")[1].strip(), 
+             response.split(",")[2].strip())
+             )
+    tone, strength, quality = zip(*processed_tones)
+    tone_df = pd.DataFrame(
+        {"Players": names,
+         "Tone": tone,
+         "Tone Strength": strength,
+         "Image Quality": quality}
+    )
+
+    # Merge dataframe
+    merged = pd.merge(tone_df, source_df, on="Players")
+    merged.sort_values(by="Players", inplace=True)
+    merged.reset_index(drop=True, inplace=True)
+    return merged
