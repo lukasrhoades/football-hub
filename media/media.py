@@ -73,7 +73,7 @@ def get_images(players):
     from selenium.webdriver.chrome.options import Options
     from selenium.common.exceptions import TimeoutException
     import sys
-    import urllib
+    import requests
 
     # Configure for performance
     options = Options()
@@ -92,6 +92,22 @@ def get_images(players):
         # Search player images (without Wikipedia entries)
         search_player.send_keys(player + " " + club + " -wiki match")
         search_player.send_keys(Keys.ENTER)
+        
+        try:  # Filter only large images
+            # Locate large images (higher quality)
+            WebDriverWait(browser, 10).until(
+                EC.element_to_be_clickable((By.ID, "hdtb-tls"))
+            ).click()  # Click tools
+            WebDriverWait(browser, 10).until(
+                EC.element_to_be_clickable((By.CLASS_NAME, "KTBKoe"))
+            ).click()  # Click size
+            large = WebDriverWait(browser, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div.YpcDnf a"))
+            )
+            url = large.get_attribute("href")
+            browser.get(url)
+        except TimeoutException:
+            pass
 
         # Find first image
         try:  # In case no images found
@@ -100,16 +116,40 @@ def get_images(players):
             )
         except TimeoutException:
             continue
+        
+        try:
+            # Find higher quality version
+            first.click()
+            hq = WebDriverWait(browser, 10).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "p7sI2"))
+            )
+            # Download image
+            image = WebDriverWait(hq, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "img"))
+            )
+        except TimeoutException:
+            # Download image
+            image = WebDriverWait(first, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "img"))
+            )
 
-        # Download image
-        image = WebDriverWait(first, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "img"))
-        )
         src = image.get_attribute("src")
-        if "ipykernel" in sys.modules:  # If in Jupyter
-            urllib.request.urlretrieve(src, filename=f"images/{player}.png")
-        else:  # If in python script file
-            urllib.request.urlretrieve(src, filename=f"media/images/{player}.png")
+
+        try:  # Request image and save to images folder
+            response = requests.get(src, timeout=10)
+            response.raise_for_status  # If failed request
+
+            if "Access Denied" in response.text:
+                continue  # If content invalid 
+
+            if "ipykernel" in sys.modules:  # If in Jupyter
+                with open(f"images/{player}.png", "wb") as file:
+                    file.write(response.content)
+            else:  # If in python script file
+                with open(f"media/images/{player}.png", "wb") as file:
+                    file.write(response.content)
+        except requests.exceptions.RequestException:
+            continue
         
         # Save source
         source = first.get_attribute("data-lpage")
@@ -118,14 +158,51 @@ def get_images(players):
     return sources
 
 
-def format_sources(sources):
-    """Formats sources nicely"""
+def tone_detector(images):
+    """Uses LLM to determine media tone of image"""
+    import google.generativeai as genai
+    import api_key
+    from PIL import Image
+    import time
+
+    # Configure for image analysis
+    genai.configure(api_key=api_key.api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
+    tone = []
+    batch_size = 5  # Process in batches to avoid resource exhaustion
+    for i in range(0, len(images), batch_size):
+        batch = images[i:i+batch_size]
+
+        for image_path in batch:
+            image = Image.open(image_path)
+
+            prompt = """
+            Respond in one word.
+            Does the player in the image reflect a positive, neutral, or negative media tone?
+            If the player is smiling or celebrating, the image is positive.
+            If they look disappointed or frustrated, the image is negative.
+            Otherwise, the image is neutral.
+            """
+
+            response = model.generate_content([prompt, image])
+
+            tone.append(response.text)
+
+            time.sleep(2)  # Pause in beetween images
+
+        time.sleep(5)  # Pause in between batches
+    
+    return tone
+
+
+def compiler(sources, tones):
+    """Compiles data into a pandas DataFrame"""
     import pandas as pd
 
     players, sources = zip(*sources)
     return pd.DataFrame(
         {"Players": players,
+         "Tones": tones,
          "Sources": sources}
     )
-
-
